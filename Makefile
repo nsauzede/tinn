@@ -39,6 +39,11 @@ endif
 $(BIN): $(SRCS:.c=.o)
 	$(CC) $(CFLAGS) $(SRCS:.c=.o) $(LDFLAGS) -o $(BIN)
 
+testimg: testimg.o Tinn.o
+
+%: %.o
+	$(CC) $(CFLAGS) $^ $(LDFLAGS) -o $@
+
 # Compile.
 
 %.o : %.c Makefile
