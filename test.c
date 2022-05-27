@@ -146,19 +146,67 @@ int main()
     srand(time(0));
     // Input and output size is harded coded here as machine learning
     // repositories usually don't include the input and output size in the data itself.
+//#define MUL10
+#define XOR
+#ifdef XOR
+    const int nips = 2;
+    const int nops = 1;
+    const int nhid = 1;
+    const int iterations = 100;
+    const float anneal = 0.99f;
+#elif defined(MUL10)
+    const int nips = 1;
+    const int nops = 1;
+    const int nhid = 28;
+    const int iterations = 100;
+    const float anneal = 0.99f;
+#else
     const int nips = 256;
     const int nops = 10;
+    const int nhid = 28;
+    const int iterations = 128;
+    const float anneal = 0.99f;
+#endif
     // Hyper Parameters.
     // Learning rate is annealed and thus not constant.
     // It can be fine tuned along with the number of hidden layers.
     // Feel free to modify the anneal rate.
     // The number of iterations can be changed for stronger training.
     float rate = 1.0f;
-    const int nhid = 28;
-    const float anneal = 0.99f;
-    const int iterations = 128;
     // Load the training set.
+#ifdef XOR
+    const int datarows = 4;
+    Data data = ndata(nips, nops, datarows);
+    for (int i = 0; i < datarows; i++) {
+        data.in[i] = malloc(nips * sizeof(float));
+        for (int j = 0; j < nips; j++) {
+            data.in[i][j] = i + 1;
+        }
+        data.tg[i] = malloc(nops * sizeof(float));
+        for (int j = 0; j < nops; j++) {
+            data.tg[i][j] = (i + 1) * 10;
+        }
+    }
+    data.in[0][1]=0;data.in[0][0]=0;data.tg[0][0]=0;
+    data.in[1][1]=0;data.in[1][0]=1;data.tg[1][0]=0;
+    data.in[2][1]=1;data.in[2][0]=0;data.tg[2][0]=0;
+    data.in[3][1]=1;data.in[3][0]=1;data.tg[3][0]=1;
+#elif defined(MUL10)
+    const int datarows = 1000;
+    Data data = ndata(nips, nops, datarows);
+    for (int i = 0; i < datarows; i++) {
+        data.in[i] = malloc(nips * sizeof(float));
+        for (int j = 0; j < nips; j++) {
+            data.in[i][j] = i + 1;
+        }
+        data.tg[i] = malloc(nops * sizeof(float));
+        for (int j = 0; j < nops; j++) {
+            data.tg[i][j] = (i + 1) * 10;
+        }
+    }
+#else
     const Data data = build("semeion.data", nips, nops);
+#endif
     // Train, baby, train.
     const Tinn tinn = xtbuild(nips, nhid, nops);
     for(int i = 0; i < iterations; i++)
