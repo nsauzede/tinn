@@ -3,6 +3,7 @@
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <math.h>
 
 // Computs error.
@@ -143,6 +144,12 @@ void xtsave(const Tinn t, const char* const path)
 Tinn xtload(const char* const path)
 {
     FILE* const file = fopen(path, "r");
+    if (!file)
+    {
+        Tinn t;
+        memset(&t, 0, sizeof(t));
+        return t;
+    }
     int nips = 0;
     int nhid = 0;
     int nops = 0;

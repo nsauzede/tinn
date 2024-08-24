@@ -139,6 +139,32 @@ static Data build(const char* path, const int nips, const int nops)
     return data;
 }
 
+void inp_disp(const float *inp, int w, int h)
+{
+    for (int j = 0; j < h; j++)
+    {
+        for (int i = 0; i < w; i++)
+        {
+            printf("%c", inp[j * w + i] > 0 ? '#' : ' ');
+        }
+        printf("\n");
+    }
+}
+
+void pd_disp(const float *pd, int size)
+{
+    for (int i = 0; i < size; i++)
+    {
+        double pred = pd[i];
+        if (pred > 0.90)
+        {
+            printf("Predicted Handwriting to be an '%d' (score: ~%.2f%%)\n", i, 100*pred);
+            return;
+        }
+    }
+    printf("Couldn't reliably predict Handwriting ??\n");
+}
+
 // Learns and predicts hand written digits with 98% accuracy.
 int main()
 {
@@ -157,42 +183,85 @@ int main()
     const int nhid = 28;
     const float anneal = 0.99f;
     const int iterations = 128;
+    //const int iterations = 10;
     // Load the training set.
     const Data data = build("semeion.data", nips, nops);
-    // Train, baby, train.
-    const Tinn tinn = xtbuild(nips, nhid, nops);
-    for(int i = 0; i < iterations; i++)
-    {
-        shuffle(data);
-        float error = 0.0f;
-        for(int j = 0; j < data.rows; j++)
-        {
-            const float* const in = data.in[j];
-            const float* const tg = data.tg[j];
-            error += xttrain(tinn, in, tg, rate);
-        }
-        printf("error %.12f :: learning rate %f\n",
-            (double) error / data.rows,
-            (double) rate);
-        rate *= anneal;
-    }
-    // This is how you save the neural network to disk.
-    xtsave(tinn, "saved.tinn");
-    xtfree(tinn);
     // This is how you load the neural network from disk.
-    const Tinn loaded = xtload("saved.tinn");
+    Tinn loaded = xtload("saved.tinn");
+    if (!loaded.w)
+    {
+        // Train, baby, train.
+        const Tinn tinn = xtbuild(nips, nhid, nops);
+        for(int i = 0; i < iterations; i++)
+        {
+            shuffle(data);
+            float error = 0.0f;
+            for(int j = 0; j < data.rows; j++)
+            {
+                const float* const in = data.in[j];
+                const float* const tg = data.tg[j];
+                error += xttrain(tinn, in, tg, rate);
+            }
+            printf("error %.12f :: learning rate %f\n",
+                (double) error / data.rows,
+                (double) rate);
+            rate *= anneal;
+        }
+        // This is how you save the neural network to disk.
+        xtsave(tinn, "saved.tinn");
+        loaded = tinn;
+    } else {
+        shuffle(data);
+    }
+    int nmiss = 0;
+    double gmini = 100;
+    for (int idx = 0; idx < data.rows; idx++) {
+        const float* const in = data.in[idx];
+        //const float* const tg = data.tg[idx];
+        const float* const pd = xtpredict(loaded, in);
+        double maxi = 0;
+        for (int i = 0; i < 10; i++) {
+            double pred = pd[i];
+            if (pred>maxi) {
+                maxi = pred;
+            }
+        }
+        if (maxi < gmini) {
+            gmini = maxi;
+        }
+        if (maxi < 0.90) {
+            //printf("Max pred only %.2f%% for idx=%d ?\n", 100*maxi, idx);
+            // Prints target.
+            //xtprint(tg, data.nops);
+            // Prints prediction.
+            //xtprint(pd, data.nops);
+            // Display input.
+            //inp_disp(in, 16, 16);
+            // Display prediction.
+            //pd_disp(pd, 10);
+            nmiss++;
+        }
+    }
+    double pct = (double)nmiss / data.rows * 100;
+    printf("rows=%d nmiss=%d (%.2f%%) gmini=%.2f%%\n", data.rows, nmiss, pct, gmini*100);
     // Now we do a prediction with the neural network we loaded from disk.
     // Ideally, we would also load a testing set to make the prediction with,
     // but for the sake of brevity here we just reuse the training set from earlier.
     // One data set is picked at random (zero index of input and target arrays is enough
     // as they were both shuffled earlier).
-    const float* const in = data.in[0];
-    const float* const tg = data.tg[0];
+    int idx = rand() % data.rows;
+    printf("Using index=%d\n", idx);
+    const float* const in = data.in[idx];
+    const float* const tg = data.tg[idx];
     const float* const pd = xtpredict(loaded, in);
     // Prints target.
     xtprint(tg, data.nops);
     // Prints prediction.
     xtprint(pd, data.nops);
+    // Display input.
+    inp_disp(in, 16, 16);
+    // Display prediction.
+    pd_disp(pd, 10);
     // All done. Let's clean up.
     xtfree(loaded);
     dfree(data);
